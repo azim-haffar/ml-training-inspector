@@ -1,5 +1,9 @@
 # ML Training Inspector
 
+## Demo
+
+[Watch demo on YouTube](https://youtu.be/x7-KYXCESMw)
+
 ## Motivation
 
 I kept running into the same annoying problem: kick off a training run, go do something else for an hour, come back and have no idea what actually happened. Loss went down — great — but *when* did it plateau? Were gradients healthy the whole time, or did they quietly die in epoch 3?
