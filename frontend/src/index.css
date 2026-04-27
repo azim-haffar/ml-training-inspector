@@ -1,0 +1,19 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: #0f1117;
+  color: #e2e8f0;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* When the app is in light mode, update body via a data attribute set by JS */
+body[data-theme='light'] {
+  background: #f0f4f8;
+  color: #1a202c;
+}

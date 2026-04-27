@@ -1,0 +1,513 @@
+/* ---------- Theme variables ---------- */
+:root {
+  --bg:           #0f1117;
+  --surface:      #141824;
+  --border:       #1e2433;
+  --border-input: #2d3748;
+  --text:         #e2e8f0;
+  --text-dim:     #8892a4;
+  --text-muted:   #4a5568;
+  --text-faint:   #374151;
+}
+
+.app.light {
+  --bg:           #f0f4f8;
+  --surface:      #ffffff;
+  --border:       #e2e8f0;
+  --border-input: #cbd5e0;
+  --text:         #1a202c;
+  --text-dim:     #4a5568;
+  --text-muted:   #718096;
+  --text-faint:   #a0aec0;
+}
+
+/* ---------- Base ---------- */
+.app {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+  color: var(--text);
+  min-height: 100vh;
+}
+
+body {
+  background: var(--bg, #0f1117);
+}
+
+/* Update body background when light mode class is on .app — easiest way
+   without touching index.html is to set it via a sibling rule */
+.app.light ~ * { background: #f0f4f8; }
+
+/* ---------- Header ---------- */
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.header-left h1 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-left: 10px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-green { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
+.dot-red   { background: #ef4444; }
+
+.status-badge {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+.status-training { background: #1e3a5f; color: #60a5fa; }
+.status-done     { background: #14291f; color: #34d399; }
+.status-stopped  { background: #2d1a00; color: #f97316; }
+.status-error    { background: #2d0f0f; color: #ef4444; }
+
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 1rem;
+  line-height: 1;
+  margin-left: 4px;
+  transition: border-color 0.15s;
+}
+.theme-toggle:hover { border-color: var(--text-dim); }
+
+/* ---------- Controls ---------- */
+.controls-card {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.controls-fields {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.field input,
+.field select {
+  background: var(--bg);
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 7px 10px;
+  font-size: 0.9rem;
+  width: 130px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.field input:focus,
+.field select:focus  { border-color: #4f46e5; }
+.field input:disabled,
+.field select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.controls-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.start-btn {
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 24px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.start-btn:hover:not(:disabled) { background: #4338ca; }
+.start-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+
+.stop-btn {
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid #7f1d1d;
+  border-radius: 8px;
+  padding: 9px 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.stop-btn:hover { background: #1f0d0d; border-color: #ef4444; }
+
+/* ---------- Progress ---------- */
+.progress-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 20px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.progress-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.progress-track {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.epoch-fill { background: #4f46e5; }
+.batch-fill { background: #0ea5e9; }
+
+.progress-pct {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  width: 36px;
+  text-align: right;
+}
+
+/* ---------- Checkpoint notice ---------- */
+.checkpoint-notice {
+  background: #0d1f14;
+  border: 1px solid #14401f;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+  color: #34d399;
+}
+
+.checkpoint-notice code {
+  color: #6ee7b7;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+/* ---------- Anomaly Panel ---------- */
+.anomaly-panel {
+  background: var(--surface);
+  border: 1px solid #2d1a00;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  animation: anomaly-appear 0.3s ease;
+}
+
+@keyframes anomaly-appear {
+  from { box-shadow: 0 0 0 2px #f9731640; }
+  to   { box-shadow: none; }
+}
+
+.anomaly-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.anomaly-panel h3 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dismiss-all-btn {
+  background: none;
+  border: 1px solid var(--border-input);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.dismiss-all-btn:hover { color: var(--text-dim); border-color: var(--text-muted); }
+
+.anomaly-list { display: flex; flex-direction: column; gap: 6px; }
+
+.anomaly-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.83rem;
+}
+
+.anomaly-badge   { font-weight: 600; white-space: nowrap; min-width: 150px; }
+.anomaly-message { flex: 1; color: var(--text-dim); }
+.anomaly-epoch   { color: var(--text-faint); font-size: 0.75rem; white-space: nowrap; }
+.anomaly-count   { font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+
+.anomaly-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  flex-shrink: 0;
+}
+.anomaly-dismiss:hover { color: var(--text-dim); }
+
+/* ---------- Summary Card ---------- */
+.summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.summary-card h2 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.export-btn {
+  background: none;
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.export-btn:hover { border-color: #4f46e5; color: #818cf8; }
+
+.summary-stats {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.stat-sub {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* ---------- Charts ---------- */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.charts-row-2 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+  .charts-grid,
+  .charts-row-2 { grid-template-columns: 1fr; }
+}
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.chart-card h2 {
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.chart-empty {
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* ---------- Previous Runs ---------- */
+.prev-runs {
+  margin-top: 32px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.prev-runs-toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 14px 20px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.prev-runs-toggle:hover { color: var(--text); }
+
+.toggle-arrow { font-size: 0.7rem; }
+
+.prev-runs-body {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 16px 20px;
+}
+
+.prev-runs-empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 16px 0;
+}
+
+.runs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.runs-table th {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 12px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.runs-table td {
+  padding: 10px 12px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.runs-table tr:last-child td { border-bottom: none; }
+.runs-table tr:hover td { background: var(--bg); }
+
+/* ---------- Empty state ---------- */
+.empty-hint {
+  text-align: center;
+  margin-top: 32px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+
+.empty-hint strong { color: var(--text-dim); }
+.empty-hint span   { font-size: 0.8rem; color: var(--text-faint); }
