@@ -17,24 +17,28 @@ function valColor(acc) {
 }
 
 export default function PreviousRuns() {
+  const [error, setError] = useState(null)
   const [open, setOpen]       = useState(false)
   const [runs, setRuns]       = useState([])
   const [loading, setLoading] = useState(false)
 
   // Fetch once when the section is first opened
   useEffect(() => {
-    if (!open || runs.length > 0) return
+    if (!open) return
+    const controller = new AbortController()
+    setError(null)
     setLoading(true)
-    fetch(`${API_URL}/api/history`)
-      .then(r => r.json())
+    fetch(`${API_URL}/api/history`, { signal: controller.signal })
+      .then(r => { if (!r.ok) throw new Error('History unavailable'); return r.json() })
       .then(data => setRuns((data.history || []).reverse())) // newest first
-      .catch(() => setRuns([]))
+      .catch(e => { if (e.name !== 'AbortError') setError('Could not load previous runs. Close and reopen to retry.') })
       .finally(() => setLoading(false))
+    return () => controller.abort()
   }, [open])
 
   return (
     <div className="prev-runs">
-      <button className="prev-runs-toggle" onClick={() => setOpen(o => !o)}>
+      <button aria-expanded={open} className="prev-runs-toggle" onClick={() => setOpen(o => !o)}>
         <span>Previous Runs</span>
         <span className="toggle-arrow">{open ? '▲' : '▼'}</span>
       </button>
@@ -42,7 +46,8 @@ export default function PreviousRuns() {
       {open && (
         <div className="prev-runs-body">
           {loading && <p className="prev-runs-empty">Loading…</p>}
-          {!loading && runs.length === 0 && (
+          {error && <p role="alert">{error}</p>}
+          {!loading && !error && runs.length === 0 && (
             <p className="prev-runs-empty">No runs recorded yet.</p>
           )}
           {!loading && runs.length > 0 && (
@@ -50,7 +55,7 @@ export default function PreviousRuns() {
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Model</th>
+                  <th>Model / Dataset</th>
                   <th>Epochs</th>
                   <th>LR</th>
                   <th>Val Acc</th>
@@ -61,8 +66,8 @@ export default function PreviousRuns() {
                 {runs.map((r, i) => (
                   <tr key={i}>
                     <td>{formatDate(r.timestamp)}</td>
-                    <td>{r.model || 'simple_cnn'}</td>
-                    <td>{r.epochs}</td>
+                    <td>{r.model || 'simple_cnn'} / {r.dataset || 'cifar10'}</td>
+                    <td>{r.completed_epochs ?? r.epochs}/{r.epochs} ({r.status || "unknown"})</td>
                     <td>{r.lr}</td>
                     <td style={{ color: valColor(r.final_val_acc), fontWeight: 600 }}>
                       {r.final_val_acc != null ? `${r.final_val_acc.toFixed(1)}%` : '—'}

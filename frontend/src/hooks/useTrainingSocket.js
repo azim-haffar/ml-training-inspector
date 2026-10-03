@@ -1,3 +1,4 @@
+import { epochPoint, batchPoint, terminalStatus } from './metricPoints'
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws'
@@ -6,6 +7,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const MAX_BATCH_POINTS = 120
 
 export default function useTrainingSocket() {
+  const [error, setError] = useState(null)
+  const [streamNotice, setStreamNotice] = useState(null)
   const [isConnected, setIsConnected]         = useState(false)
   const [status, setStatus]                   = useState('idle') // idle|training|done|stopped|error
   const [epochData, setEpochData]             = useState([])
@@ -19,6 +22,8 @@ export default function useTrainingSocket() {
   const [duration, setDuration]               = useState(null) // seconds
   const [currentModel, setCurrentModel]       = useState(null)
 
+  const runRef = useRef(null)
+  const [currentDataset, setCurrentDataset] = useState(null)
   const wsRef         = useRef(null)
   const reconnectRef  = useRef(null)
   const startTimeRef  = useRef(null)
@@ -40,12 +45,33 @@ export default function useTrainingSocket() {
       }
 
       ws.onmessage = (event) => {
-        const data = JSON.parse(event.data)
+        let data
+        try { data = JSON.parse(event.data) } catch { setError('Received an invalid server message'); return }
+        if (data.type === 'status') {
+          setStatus(data.status)
+          setLastCheckpoint(data.checkpoint)
+          setError(data.error)
+          if (data.training_start) {
+            if (runRef.current !== data.training_start.run_id) {
+              setEpochData([]); setBatchData([]); setAnomalies([]); setGradNorms({}); setClassAccuracies({}); setLrHistory([])
+              runRef.current = data.training_start.run_id
+            }
+            setCurrentDataset(data.training_start.dataset)
+            setCurrentModel(data.training_start.model)
+            setProgress(p => ({ ...p, totalEpochs: data.training_start.total_epochs, totalBatches: data.training_start.total_batches }))
+            setStreamNotice('Connected to an existing run. Earlier chart points are not replayed; charts show received samples only.')
+          }
+          return
+        }
 
         if (data.type === 'heartbeat' || data.type === 'ping') return
 
         if (data.type === 'training_start') {
+          runRef.current = data.run_id
+          setCurrentDataset(data.dataset)
           setStatus('training')
+          setError(null)
+          setStreamNotice(null)
           setEpochData([])
           setBatchData([])
           setAnomalies([])
@@ -66,20 +92,14 @@ export default function useTrainingSocket() {
         else if (data.type === 'batch') {
           setProgress(p => ({ ...p, epoch: data.epoch, batch: data.batch }))
           setBatchData(prev => {
-            const point = { label: `${data.epoch}-${data.batch}`, loss: data.loss, accuracy: data.accuracy }
+            const point = batchPoint(data)
             return [...prev, point].slice(-MAX_BATCH_POINTS)
           })
           if (data.grad_norms) setGradNorms(data.grad_norms)
         }
 
         else if (data.type === 'epoch') {
-          setEpochData(prev => [...prev, {
-            epoch:      data.epoch,
-            train_loss: data.train_loss,
-            val_loss:   data.val_loss,
-            train_acc:  data.train_acc,
-            val_acc:    data.val_acc,
-          }])
+          setEpochData(prev => [...prev, epochPoint(data)])
           if (data.class_accuracies) setClassAccuracies(data.class_accuracies)
           if (data.lr != null) setLrHistory(prev => [...prev, { epoch: data.epoch, lr: data.lr }])
           if (data.anomalies?.length > 0) {
@@ -105,13 +125,13 @@ export default function useTrainingSocket() {
         }
 
         else if (data.type === 'done') {
-          setStatus('done')
+          setStatus(terminalStatus(data))
           if (startTimeRef.current) setDuration(Math.round((Date.now() - startTimeRef.current) / 1000))
         }
 
         else if (data.type === 'error') {
           setStatus('error')
-          console.error('Training error:', data.message)
+          setError(data.message)
         }
       }
     }
@@ -125,6 +145,8 @@ export default function useTrainingSocket() {
   }, [])
 
   const startTraining = useCallback(async (config) => {
+    setStatus('starting')
+    setError(null)
     try {
       const res = await fetch(`${API_URL}/api/start`, {
         method: 'POST',
@@ -132,10 +154,10 @@ export default function useTrainingSocket() {
         body: JSON.stringify(config),
       })
       const result = await res.json()
-      if (result.error) { console.error('Could not start:', result.error); return false }
+      if (!res.ok || result.error) { setError(typeof result.detail === 'string' ? result.detail : 'Invalid training settings or server error'); setStatus('error'); return false }
       return true
     } catch (err) {
-      console.error('Failed to reach backend:', err)
+      setError('Cannot reach the backend. Check that the server is running.'); setStatus('error')
       return false
     }
   }, [])
@@ -144,14 +166,15 @@ export default function useTrainingSocket() {
     try {
       const res = await fetch(`${API_URL}/api/stop`, { method: 'POST' })
       const result = await res.json()
-      if (result.error) console.error('Could not stop:', result.error)
+      if (!res.ok || result.error) setError(result.detail || result.error)
+      else setStatus('stopping')
     } catch (err) {
-      console.error('Failed to reach backend:', err)
+      setError('Cannot reach the backend to stop training. Reconnect and try again.')
     }
   }, [])
 
   return {
-    isConnected, status, currentModel,
+    isConnected, status, currentModel, currentDataset, error, streamNotice,
     epochData, batchData, gradNorms, anomalies,
     classAccuracies, lrHistory,
     progress, lastCheckpoint, duration,

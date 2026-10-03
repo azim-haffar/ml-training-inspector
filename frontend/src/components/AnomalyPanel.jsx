@@ -60,7 +60,7 @@ export default function AnomalyPanel({ anomalies }) {
   return (
     <div className="anomaly-panel">
       <div className="anomaly-header">
-        <h3>⚠ Anomalies Detected ({groups.length})</h3>
+        <h3>⚠ Heuristic Signals ({groups.length})</h3>
         <button className="dismiss-all-btn" onClick={dismissAll}>Dismiss all</button>
       </div>
       <div className="anomaly-list">

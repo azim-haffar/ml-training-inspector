@@ -511,3 +511,25 @@ body {
 
 .empty-hint strong { color: var(--text-dim); }
 .empty-hint span   { font-size: 0.8rem; color: var(--text-faint); }
+
+.metric-note { color: var(--text-dim); font-size: .85rem; margin: 16px 0; line-height: 1.6; }
+.error-notice { border: 1px solid #ef4444; color: var(--text); padding: 16px; margin-bottom: 16px; border-radius: 8px; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #818cf8; outline-offset: 3px; }
+.chart-card { min-width: 0; }
+.checkpoint-notice { overflow-wrap: anywhere; }
+.prev-runs-body { overflow-x: auto; }
+.chart-empty { color: var(--text-dim); }
+@media (max-width: 600px) {
+  .app { padding: 16px 12px; }
+  .app-header { align-items: flex-start; flex-direction: column; gap: 16px; }
+  .header-right { flex-wrap: wrap; }
+  .controls-fields { width: 100%; gap: 12px; }
+  .field { flex: 1 1 120px; }
+  .field input, .field select { width: 100%; min-height: 44px; }
+  button { min-height: 44px; }
+  .anomaly-item { flex-wrap: wrap; }
+  .chart-card { padding: 12px; }
+}
+
+.metric-table { overflow-x: auto; padding: 16px; border: 1px solid var(--border); }
+.metric-table summary { cursor: pointer; padding: 8px; }

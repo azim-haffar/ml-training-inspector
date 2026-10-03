@@ -12,8 +12,8 @@ services:
       - PYTHONUNBUFFERED=1
       - HOST=0.0.0.0
       - PORT=8000
-    # --reload watches for file changes — pairs with the volume mount above
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    # --workers 1 watches for file changes — pairs with the volume mount above
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 1
     restart: unless-stopped
 
   frontend:

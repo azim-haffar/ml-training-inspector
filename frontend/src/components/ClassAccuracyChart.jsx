@@ -14,7 +14,7 @@ const CustomTooltip = ({ active, payload }) => {
   return (
     <div style={{ background: '#141824', border: '1px solid #2d3748', borderRadius: 6, padding: '6px 10px', fontSize: '0.8rem' }}>
       <strong style={{ color: '#e2e8f0' }}>{name}</strong>
-      <div style={{ color: barColor(acc) }}>{acc.toFixed(1)}%</div>
+      <div style={{ color: barColor(acc) }}>{acc == null ? 'No validation samples' : `${acc.toFixed(1)}%`}</div>
     </div>
   )
 }
@@ -27,11 +27,11 @@ export default function ClassAccuracyChart({ classAccuracies }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={200}>
-      <BarChart data={data} layout="vertical" margin={{ top: 0, right: 30, bottom: 0, left: 70 }}>
+    <ResponsiveContainer width="100%" height={280}>
+      <BarChart data={data} layout="vertical" margin={{ top: 0, right: 30, bottom: 0, left: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1e2433" horizontal={false} />
         <XAxis type="number" domain={[0, 100]} unit="%" tick={{ fill: '#4a5568', fontSize: 11 }} />
-        <YAxis type="category" dataKey="name" tick={{ fill: '#8892a4', fontSize: 12 }} width={65} />
+        <YAxis type="category" dataKey="name" tick={{ fill: '#8892a4', fontSize: 12 }} width={90} interval={0} />
         <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff08' }} />
         <Bar dataKey="acc" radius={[0, 3, 3, 0]} isAnimationActive={false}>
           {data.map((entry, i) => (

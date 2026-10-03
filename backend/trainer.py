@@ -1,11 +1,14 @@
 import os
 import threading
+import random
+from pathlib import Path
+from uuid import uuid4
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, TensorDataset
 import logging
 
 from anomaly import check_anomalies
@@ -50,8 +53,7 @@ class SimpleCNN(nn.Module):
         return self.classifier(x)
 
 
-# ResNet-9 variant with two residual blocks. Accuracy depends on the
-# training setup; this repository does not claim a benchmark result.
+# ResNet-9 architecture with two residual blocks. Quality is not benchmarked here.
 class ResNet9(nn.Module):
     def __init__(self):
         super().__init__()
@@ -90,12 +92,19 @@ class Trainer:
     def __init__(self, epochs=10, batch_size=64, lr=0.001,
                  model_name: str = "simple_cnn",
                  stop_event: threading.Event = None,
-                 checkpoint_dir: str = "./checkpoints"):
+                 checkpoint_dir: str = "./checkpoints",
+                 dataset="cifar10", seed=42, device="cpu", train_samples=160, val_samples=80):
         self.epochs = epochs
         self.batch_size = batch_size
         self.lr = lr
         self.model_name = model_name
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(device)
+        self.dataset = dataset
+        self.seed = seed
+        self.train_samples = train_samples
+        self.val_samples = val_samples
+        self.run_id = uuid4().hex
+        self.completed_epochs = 0
         self.epoch_history = []
         self.stop_event = stop_event or threading.Event()
         self.checkpoint_dir = checkpoint_dir
@@ -106,6 +115,17 @@ class Trainer:
         return SimpleCNN().to(self.device)
 
     def _load_data(self):
+        if self.dataset == "synthetic":
+            generator = torch.Generator().manual_seed(self.seed)
+            def make(size):
+                labels = torch.arange(size) % 10
+                images = torch.randn(size, 3, 32, 32, generator=generator) * 0.1
+                # Learnable class stripes; a plumbing demo, not a quality benchmark.
+                for i, label in enumerate(labels):
+                    images[i, int(label) % 3, int(label) * 3:int(label) * 3 + 3, :] += 1
+                return TensorDataset(images, labels)
+            return (DataLoader(make(self.train_samples), batch_size=self.batch_size, shuffle=True),
+                    DataLoader(make(self.val_samples), batch_size=self.batch_size))
         mean = (0.4914, 0.4822, 0.4465)
         std  = (0.2023, 0.1994, 0.2010)
 
@@ -120,8 +140,8 @@ class Trainer:
             transforms.Normalize(mean, std),
         ])
 
-        trainset = torchvision.datasets.CIFAR10(root="./data", train=True,  download=True, transform=train_transform)
-        valset   = torchvision.datasets.CIFAR10(root="./data", train=False, download=True, transform=val_transform)
+        trainset = torchvision.datasets.CIFAR10(root=str(Path(__file__).resolve().parent / "data"), train=True,  download=True, transform=train_transform)
+        valset   = torchvision.datasets.CIFAR10(root=str(Path(__file__).resolve().parent / "data"), train=False, download=True, transform=val_transform)
 
         # num_workers=0 avoids shared memory issues inside Docker containers
         train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True,  num_workers=0)
@@ -143,9 +163,11 @@ class Trainer:
 
         with torch.no_grad():
             for inputs, labels in loader:
+                if self.stop_event.is_set():
+                    raise InterruptedError("Training cancelled during evaluation")
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = model(inputs)
-                total_loss += criterion(outputs, labels).item()
+                total_loss += criterion(outputs, labels).item() * labels.size(0)
                 _, predicted = outputs.max(1)
                 total   += labels.size(0)
                 correct += predicted.eq(labels).sum().item()
@@ -157,26 +179,35 @@ class Trainer:
 
         class_acc = {
             CIFAR10_CLASSES[i]: round(100.0 * class_correct[i] / class_total[i], 1)
-            if class_total[i] > 0 else 0.0
+            if class_total[i] > 0 else None
             for i in range(10)
         }
 
-        return total_loss / len(loader), 100.0 * correct / total, class_acc
+        return total_loss / total, 100.0 * correct / total, class_acc
 
     def _save_checkpoint(self, model, optimizer, epoch):
         os.makedirs(self.checkpoint_dir, exist_ok=True)
-        path = os.path.join(self.checkpoint_dir, f"model_epoch_{epoch}.pth")
+        path = os.path.join(self.checkpoint_dir, f"{self.run_id}_epoch_{epoch}.pth")
+        temporary = path + ".tmp"
         torch.save({
             "epoch": epoch,
+            "completed_epochs": self.completed_epochs,
+            "resumable": False,
+            "dataset": self.dataset,
+            "seed": self.seed,
             "model_name": self.model_name,
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
-        }, path)
+        }, temporary)
+        os.replace(temporary, path)
         logger.info(f"Checkpoint saved → {path}")
         return path
 
     def train(self, callback):
         logger.info(f"Starting training — model={self.model_name} device={self.device}")
+        random.seed(self.seed)
+        torch.manual_seed(self.seed)
+        torch.set_num_threads(2)
         model     = self._build_model()
         optimizer = optim.Adam(model.parameters(), lr=self.lr)
         criterion = nn.CrossEntropyLoss()
@@ -189,16 +220,20 @@ class Trainer:
 
         callback({
             "type": "training_start",
+            "run_id": self.run_id,
             "model": self.model_name,
             "total_epochs": self.epochs,
             "total_batches": total_batches,
             "device": str(self.device),
+            "dataset": self.dataset,
+            "seed": self.seed,
         })
 
         last_epoch = 0
 
         for epoch in range(1, self.epochs + 1):
             last_epoch = epoch
+            current_lr = optimizer.param_groups[0]["lr"]
             model.train()
             running_loss, correct, total = 0.0, 0, 0
 
@@ -215,29 +250,39 @@ class Trainer:
                 loss.backward()
                 optimizer.step()
 
-                running_loss += loss.item()
+                running_loss += loss.item() * labels.size(0)
                 _, predicted  = outputs.max(1)
                 total   += labels.size(0)
                 correct += predicted.eq(labels).sum().item()
 
-                if (batch_idx + 1) % 20 == 0:
+                if (batch_idx + 1) % 20 == 0 or self.dataset == "synthetic" or batch_idx + 1 == total_batches:
                     callback({
                         "type": "batch",
                         "model": self.model_name,
                         "epoch": epoch,
                         "batch": batch_idx + 1,
                         "total_batches": total_batches,
-                        "loss": round(running_loss / (batch_idx + 1), 5),
+                        "loss": round(loss.item(), 5),
+                        "running_loss": round(running_loss / total, 5),
                         "accuracy": round(100.0 * correct / total, 2),
                         "grad_norms": self._get_grad_norms(model),
                     })
 
-            val_loss, val_acc, class_acc = self._evaluate(model, val_loader, criterion)
-            train_loss = running_loss / total_batches
+            if self.stop_event.is_set():
+                checkpoint_path = self._save_checkpoint(model, optimizer, epoch)
+                callback({"type": "stopped", "epoch": epoch, "checkpoint": checkpoint_path})
+                return
+            try:
+                val_loss, val_acc, class_acc = self._evaluate(model, val_loader, criterion)
+            except InterruptedError:
+                checkpoint_path = self._save_checkpoint(model, optimizer, epoch)
+                callback({"type": "stopped", "epoch": epoch, "checkpoint": checkpoint_path})
+                return
+            train_loss = running_loss / total
             train_acc  = 100.0 * correct / total
 
             scheduler.step()
-            current_lr = optimizer.param_groups[0]["lr"]
+            self.completed_epochs = epoch
 
             epoch_entry = {
                 "epoch": epoch,
@@ -265,4 +310,7 @@ class Trainer:
             )
 
         checkpoint_path = self._save_checkpoint(model, optimizer, last_epoch)
+        if self.stop_event.is_set():
+            callback({"type": "stopped", "epoch": last_epoch, "checkpoint": checkpoint_path})
+            return
         callback({"type": "checkpoint_saved", "checkpoint": checkpoint_path, "epoch": last_epoch})

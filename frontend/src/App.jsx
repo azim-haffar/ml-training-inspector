@@ -12,7 +12,7 @@ import SummaryCard from './components/SummaryCard'
 import PreviousRuns from './components/PreviousRuns'
 import './App.css'
 
-const DEFAULT_CONFIG = { epochs: 10, batch_size: 64, learning_rate: 0.001, model: 'simple_cnn' }
+const DEFAULT_CONFIG = { epochs: 2, batch_size: 32, learning_rate: 0.001, model: 'simple_cnn', dataset: 'synthetic', seed: 42 }
 
 const MODEL_LABELS = {
   simple_cnn: 'Simple CNN',
@@ -24,7 +24,7 @@ export default function App() {
   const [theme, setTheme]   = useState(() => localStorage.getItem('theme') || 'dark')
 
   const {
-    isConnected, status, currentModel,
+    isConnected, status, currentModel, currentDataset, error, streamNotice,
     epochData, batchData, gradNorms, anomalies,
     classAccuracies, lrHistory,
     progress, lastCheckpoint, duration,
@@ -37,7 +37,7 @@ export default function App() {
     document.body.setAttribute('data-theme', theme)
   }, [theme])
 
-  const isTraining = status === 'training'
+  const isTraining = ['starting', 'training', 'stopping'].includes(status)
   const isDone     = status === 'done' || status === 'stopped'
   const hasData    = epochData.length > 0 || batchData.length > 0
   const modelLabel = currentModel ? (MODEL_LABELS[currentModel] || currentModel) : MODEL_LABELS[config.model]
@@ -58,15 +58,15 @@ export default function App() {
       <header className="app-header">
         <div className="header-left">
           <h1>ML Training Inspector</h1>
-          <span className="subtitle">CIFAR-10 · {modelLabel}</span>
+          <span className="subtitle">{(currentDataset || config.dataset) === 'synthetic' ? 'Synthetic CPU demo' : 'CIFAR-10'} · {modelLabel}</span>
         </div>
         <div className="header-right">
           <span className={`dot ${isConnected ? 'dot-green' : 'dot-red'}`} />
-          <span className="connection-label">{isConnected ? 'Connected' : 'Connecting…'}</span>
+          <span role="status" className="connection-label">{isConnected ? 'Connected' : 'Connecting…'}</span>
           {status !== 'idle' && (
             <span className={`status-badge status-${status}`}>{status}</span>
           )}
-          <button className="theme-toggle" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
+          <button aria-label="Toggle light or dark theme" className="theme-toggle" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}>
             {theme === 'dark' ? '☀' : '☾'}
           </button>
         </div>
@@ -74,6 +74,11 @@ export default function App() {
 
       <div className="controls-card">
         <div className="controls-fields">
+          <label className="field"><span>Dataset</span>
+            <select value={config.dataset} disabled={isTraining} onChange={e => setConfig({ ...config, dataset: e.target.value })}>
+              <option value="synthetic">Synthetic demo</option><option value="cifar10">CIFAR-10</option>
+            </select>
+          </label>
           <label className="field">
             <span>Model</span>
             <select
@@ -127,11 +132,15 @@ export default function App() {
         </div>
       </div>
 
+      {error && <div className="error-notice" role="alert">{error}</div>}
+      {streamNotice && <p role="status">{streamNotice}</p>}
+      {status === 'starting' && <p role="status">Preparing data and model… CIFAR-10 may need an initial download.</p>}
+      <p className="metric-note">CPU · Seed {config.seed} · One shared run per server. Synthetic results demonstrate the pipeline, not real-world model quality. Signals use fixed heuristic thresholds.</p>
       {isTraining && <ProgressBar progress={progress} />}
 
       {lastCheckpoint && (
         <div className="checkpoint-notice">
-          Checkpoint saved → <code>{lastCheckpoint}</code>
+          Model snapshot saved (resume unavailable) → <code>{lastCheckpoint}</code>
         </div>
       )}
 
@@ -156,7 +165,7 @@ export default function App() {
           <AccuracyChart epochData={epochData} />
         </div>
         <div className="chart-card">
-          <h2>Live Batch Loss</h2>
+          <h2>Sampled Batch Loss</h2>
           <BatchLossChart batchData={batchData} />
         </div>
         <div className="chart-card">
@@ -171,7 +180,7 @@ export default function App() {
           <ClassAccuracyChart classAccuracies={classAccuracies} />
         </div>
         <div className="chart-card">
-          <h2>LR Schedule</h2>
+          <h2>Learning Rate Used</h2>
           <LRChart lrHistory={lrHistory} />
         </div>
       </div>
@@ -180,10 +189,15 @@ export default function App() {
         <div className="empty-hint">
           Configure the run above and click <strong>Start Training</strong> to begin.
           <br />
-          <span>First run downloads CIFAR-10 (~170 MB) — takes a minute.</span>
+          <span>Synthetic demo runs without downloading data. CIFAR-10 downloads about 170 MB on first use.</span>
         </div>
       )}
 
+      {epochData.length > 0 && <details className="metric-table"><summary>Received epoch metrics (accessible table)</summary>
+        <table className="runs-table"><caption>Same server values used by loss and accuracy charts</caption>
+          <thead><tr><th>Epoch</th><th>Train loss</th><th>Validation loss</th><th>Train accuracy %</th><th>Validation accuracy %</th></tr></thead>
+          <tbody>{epochData.map(e => <tr key={e.epoch}><td>{e.epoch}</td><td>{e.train_loss}</td><td>{e.val_loss}</td><td>{e.train_acc}</td><td>{e.val_acc}</td></tr>)}</tbody>
+        </table></details>}
       <PreviousRuns />
     </div>
   )

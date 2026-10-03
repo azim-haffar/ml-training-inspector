@@ -1,24 +1,8 @@
 """Exercise API orchestration with a fake trainer; no Torch or dataset needed."""
-import asyncio
-import importlib
-import sys
-import types
 import unittest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
-
-trainer_stub = types.ModuleType("trainer")
-trainer_stub.Trainer = object
-with patch.dict(sys.modules, {"trainer": trainer_stub}):
-    api = importlib.import_module("main")
-
-
-class ImmediateThread:
-    def __init__(self, target, **kwargs):
-        self.target = target
-
-    def start(self):
-        self.target()
+import main as api
 
 
 class FakeTrainer:
@@ -42,16 +26,17 @@ class APITests(unittest.TestCase):
             self.assertEqual(response.status_code, 422)
             trainer.assert_not_called()
 
-    def test_completion_event_only_for_successful_run(self):
-        for mode, expected in [("complete", ["done"]), ("stop", ["stopped"]), ("fail", ["error"])]:
+    def test_completion_event_preserves_outcome(self):
+        for mode, expected in [("complete", "done"), ("stop", "stopped"), ("fail", "error")]:
             with self.subTest(mode=mode):
                 FakeTrainer.mode = mode
                 api._training_active = False
-                events = []
-                with patch.object(api, "Trainer", FakeTrainer), patch.object(api.threading, "Thread", ImmediateThread), patch.object(api, "_broadcast", events.append):
-                    asyncio.run(api.start_training(api.TrainingConfig()))
-                self.assertEqual([event["type"] for event in events], expected)
-                self.assertFalse(api._training_active)
+                with TestClient(api.app) as client, patch.object(api, "Trainer", FakeTrainer):
+                    response = client.post("/api/start", json={})
+                    self.assertEqual(response.status_code, 200)
+                    api._training_thread.join(2)
+                    self.assertEqual(client.get("/api/status").json()["status"], expected)
+                    self.assertFalse(api._training_active)
 
 
 if __name__ == "__main__":
