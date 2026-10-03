@@ -50,8 +50,8 @@ class SimpleCNN(nn.Module):
         return self.classifier(x)
 
 
-# ResNet-9: a fast 9-layer network that gets ~90%+ on CIFAR-10 with the
-# right LR schedule. Uses two residual blocks to avoid vanishing gradients.
+# ResNet-9 variant with two residual blocks. Accuracy depends on the
+# training setup; this repository does not claim a benchmark result.
 class ResNet9(nn.Module):
     def __init__(self):
         super().__init__()
