@@ -9,7 +9,7 @@ from typing import Optional
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from config import TrainingConfig
 
 from trainer import Trainer
 
@@ -35,13 +35,6 @@ _training_active = False
 _stop_event = threading.Event()
 
 HISTORY_PATH = "./data/history.json"
-
-
-class TrainingConfig(BaseModel):
-    epochs: int = 10
-    batch_size: int = 64
-    learning_rate: float = 0.001
-    model: str = "simple_cnn"  # "simple_cnn" | "resnet9"
 
 
 @app.on_event("startup")
@@ -112,6 +105,7 @@ async def start_training(config: TrainingConfig):
                 run_info["total_anomalies"] += len(data.get("anomalies", []))
             _broadcast(data)
 
+        completed = False
         try:
             trainer = Trainer(
                 epochs=config.epochs,
@@ -122,6 +116,7 @@ async def start_training(config: TrainingConfig):
                 checkpoint_dir="./checkpoints",
             )
             trainer.train(callback=tracking_callback)
+            completed = not _stop_event.is_set()
         except Exception as e:
             logger.error(f"Training crashed: {e}", exc_info=True)
             _broadcast({"type": "error", "message": str(e)})
@@ -133,7 +128,8 @@ async def start_training(config: TrainingConfig):
                     _save_history(run_info, config)
                 except Exception as e:
                     logger.warning(f"Could not save history: {e}")
-            _broadcast({"type": "done"})
+            if completed:
+                _broadcast({"type": "done"})
             logger.info("Training thread finished")
 
     thread = threading.Thread(target=run, daemon=True)
