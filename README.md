@@ -4,6 +4,14 @@ A PyTorch training dashboard with FastAPI, WebSockets, React and Recharts. Obser
 
 [Existing walkthrough](https://youtu.be/x7-KYXCESMw) · [Verification record](ENGINEERING_NOTES.md)
 
+## 60-second project tour — no setup required
+
+1. **See the interface:** [dashboard capture and case study](https://www.azimx.dev/projects/ml-training-inspector) show a measured synthetic CPU run.
+2. **Follow the engineering:** read [metric meaning](#metric-meaning) and [checkpoint lifecycle](#checkpoints-and-lifecycle) for aggregation, bounded client queues and cancellation decisions.
+3. **Inspect reproducibility:** [engineering notes](ENGINEERING_NOTES.md) document the run; the [CPU demo below](#quick-reproducible-cpu-demo) lets you reproduce it locally.
+
+**Access:** this is a local demonstration, with no public hosted training service. Synthetic accuracy verifies the demonstration pipeline, not real-world model quality. Checkpoint loading is supported; training resume is absent.
+
 ## Quick reproducible CPU demo
 
 Use Python 3.12 and Node.js 22.12 or newer. From the repository root:
